@@ -1,0 +1,15 @@
+{
+  "name": "visa-scraper",
+  "version": "1.0.0",
+  "description": "visa-scraper",
+  "main": "scraper.js",
+  "scripts": {
+    "start": "node script.js"
+  },
+  "author": "Vlad Hutupasu",
+  "license": "ISC",
+  "dependencies": {
+    "node-telegram-bot-api": "^0.65.1",
+    "puppeteer": "^22.6.2"
+  }
+}
