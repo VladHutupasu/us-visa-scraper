@@ -3,22 +3,31 @@ const TelegramBot = require("node-telegram-bot-api");
 const config = require("./config");
 
 const bot = new TelegramBot(config.BOT_API_KEY, { polling: false });
+let browser;
+let page;
 
-const handleError = async (error, page) => {
-  console.error("There has been a problem with your fetch operation:", error);
+const log = async (...args) => {
+  const message = new Date().toLocaleString() + " " + args.join(" | ");
+  console.log(message);
+  await sendTelegramMessage(message);
+};
+
+const sendTelegramMessage = async (message) => {
+  await bot.sendMessage(config.BOT_CHAT_ID_CHANNEL, message);
+};
+
+const handleAppointmentAvailabilityError = async (error) => {
   const title = await page.$eval("title", (el) => el.text);
-  await bot.sendMessage(
-    config.BOT_CHAT_ID_CHANNEL,
-    `Error 😢 with \n ${title}`
-  );
+  await log(`Error 😢 with \n ${title}`, error);
   if (title.includes("Sign in")) {
-    await loginToWebsite(page);
+    await log("Logging you in again...");
+    await loginToWebsite();
   }
 };
 
-const loginToWebsite = async (page) => {
+const loginToWebsite = async () => {
   // Navigate to the sign in page
-  console.log("\nLogging you in...")
+  await log("\nLogging you in...");
   await page.goto(config.URL_SIGN_IN);
 
   // Fill in the form fields
@@ -32,12 +41,11 @@ const loginToWebsite = async (page) => {
     page.click('input[type="submit"]'), // Click the submit button
   ]);
 
-  console.log("Logged in successfully! 🎉🎉🎉")
-  readline.close();
+  await log("Logged in successfully! 🎉🎉🎉");
 };
 
-const checkAppointmentAvailability = async (page) => {
-  console.log("\nChecking for appointments 🔍 ...");
+const checkAppointmentAvailability = async () => {
+  await log("\nChecking for appointments 🔍 ...");
   // Now you can navigate to the second URL
   await page.goto(config.URL_PAYMENT);
 
@@ -57,28 +65,23 @@ const checkAppointmentAvailability = async (page) => {
     console.log(message);
   } else {
     const message = `🔥🔥 Appointments available! 🔥🔥\n ${config.URL_PAYMENT}`;
-    console.log(message);
-    await bot.sendMessage(config.BOT_CHAT_ID_CHANNEL, message);
+    await log(message);
   }
 };
 
 (async () => {
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
+  browser = await puppeteer.launch();
+  page = await browser.newPage();
 
-  loginToWebsite(page)
-    .then(() => checkAppointmentAvailability(page))
+  loginToWebsite()
     .then(() => {
       setInterval(() => {
-        checkAppointmentAvailability(page).catch((error) =>
-          handleError(error, page)
+        checkAppointmentAvailability().catch((error) =>
+          handleAppointmentAvailabilityError(error)
         );
       }, 5 * 60 * 1000);
     })
-    .catch((error) => {
-      console.error(
-        "There has been a problem with your login operation:",
-        error
-      );
+    .catch(async (error) => {
+      await log("There has been a problem with your login operation:", error);
     });
 })();
